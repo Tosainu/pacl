@@ -11,7 +11,21 @@ pub enum Args {
     },
 }
 
-pub fn print_usage(exe_name: &str) {
+pub fn run() -> Result<()> {
+    let arg = parse_command_line()?;
+
+    match arg {
+        Args::Help => {
+            print_usage();
+            Ok(())
+        }
+        _ => {
+            println!("not implemented yet");
+            Ok(())
+        }
+    }
+}
+
 pub fn print_usage() {
     println!("usage:");
     println!("    pacl [options]... <repository url> [-- [extra args passed to git]...]");
