@@ -15,6 +15,10 @@ pub type Result<T> = std::result::Result<T, Box<Error>>;
 
 #[derive(Debug)]
 pub enum ErrorKind {
+    GitReturnedNonZero(i32),
+    GitTerminated,
+    HomeDirectoryNotDetected,
+    Io(std::io::Error),
     InvalidUrl(url::ParseError),
     InvalidArg(Option<String>),
     MissingRequiredArg(String),
@@ -29,6 +33,12 @@ impl fmt::Display for Error {
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            ErrorKind::GitReturnedNonZero(status) => {
+                write!(f, "Git returned non-zero status code '{}'", status)
+            }
+            ErrorKind::GitTerminated => write!(f, "Git terminated by signal"),
+            ErrorKind::HomeDirectoryNotDetected => write!(f, "Home directory not detected"),
+            ErrorKind::Io(e) => e.fmt(f),
             ErrorKind::InvalidUrl(e) => e.fmt(f),
             ErrorKind::InvalidArg(arg) => {
                 write!(f, "unknown / invalid commandline argument")?;
@@ -42,9 +52,14 @@ impl fmt::Display for ErrorKind {
     }
 }
 
+impl From<std::io::Error> for Box<Error> {
+    fn from(e: std::io::Error) -> Box<Error> {
+        Error::new(ErrorKind::Io(e))
+    }
+}
+
 impl From<url::ParseError> for Box<Error> {
     fn from(e: url::ParseError) -> Box<Error> {
         Error::new(ErrorKind::InvalidUrl(e))
     }
 }
-

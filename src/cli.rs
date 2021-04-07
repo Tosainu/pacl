@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use crate::error::{Error, ErrorKind, Result};
 use crate::url::normalize_repo_url;
 
@@ -19,9 +21,17 @@ pub fn run() -> Result<()> {
             print_usage();
             Ok(())
         }
-        _ => {
-            println!("not implemented yet");
-            Ok(())
+        Args::Clone {
+            url,
+            base_dir,
+            extra_args,
+        } => {
+            let base_dir = if let Some(d) = base_dir {
+                PathBuf::from(d)
+            } else {
+                default_base_dir()?
+            };
+            do_clone(url, base_dir.as_path(), extra_args)
         }
     }
 }
@@ -74,5 +84,40 @@ pub fn parse_command_line() -> Result<Args> {
         Err(Error::new(ErrorKind::MissingRequiredArg(
             "<url>".to_owned(),
         )))
+    }
+}
+
+fn default_base_dir() -> Result<PathBuf> {
+    Ok(dirs::home_dir()
+        .ok_or_else(|| Error::new(ErrorKind::HomeDirectoryNotDetected))?
+        .join(".pacl"))
+}
+
+fn do_clone(url: url::Url, base_dir: &Path, extra_args: Vec<String>) -> Result<()> {
+    use std::process::Command;
+
+    let host = match (url.host_str(), url.port()) {
+        (Some(host), Some(port)) => format!("{}:{}", host, port),
+        (Some(host), None) => String::from(host),
+        _ => unreachable!(),
+    };
+
+    let path = url.path();
+    let path = path.strip_suffix(".git").unwrap_or(path);
+
+    let dir = base_dir.join(host).join(&path[1..]);
+
+    let mut cmd = Command::new("git");
+    cmd.arg("clone")
+        .arg(url.to_string())
+        .arg(dir)
+        .args(&extra_args);
+
+    println!("$ {:?}", cmd);
+
+    match cmd.spawn()?.wait()?.code() {
+        Some(0) => Ok(()),
+        Some(code) => Err(Error::new(ErrorKind::GitReturnedNonZero(code))),
+        None => Err(Error::new(ErrorKind::GitTerminated)),
     }
 }
