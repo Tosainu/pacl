@@ -1,3 +1,3 @@
 pub mod cli;
-pub mod error;
-pub mod url;
+mod error;
+mod url;

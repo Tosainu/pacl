@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use crate::error::{Error, ErrorKind, Result};
 use crate::url::normalize_repo_url;
 
 #[derive(Debug)]
-pub enum Args {
+enum Args {
     Help, // -h, --help
     Clone {
         base_dir: Option<String>, // -b, --base-dir
@@ -31,12 +32,12 @@ pub fn run() -> Result<()> {
             } else {
                 default_base_dir()?
             };
-            do_clone(&url, base_dir.as_path(), extra_args)
+            do_clone(&url, base_dir, &extra_args)
         }
     }
 }
 
-pub fn print_usage() {
+fn print_usage() {
     println!("usage:");
     println!("    pacl [options]... <repository url> [-- [extra args passed to git]...]");
     println!();
@@ -45,7 +46,7 @@ pub fn print_usage() {
     println!("    -b, --base-dir <dir>  base directory to clone");
 }
 
-pub fn parse_command_line() -> Result<Args> {
+fn parse_command_line() -> Result<Args> {
     let mut args = std::env::args();
     args.next();
 
@@ -93,9 +94,11 @@ fn default_base_dir() -> Result<PathBuf> {
         .join(".pacl"))
 }
 
-fn do_clone(url: &str, base_dir: &Path, extra_args: Vec<String>) -> Result<()> {
-    use std::process::Command;
-
+fn do_clone<P, S>(url: &str, base_dir: P, extra_args: &[S]) -> Result<()>
+where
+    P: AsRef<Path>,
+    S: AsRef<std::ffi::OsStr>,
+{
     let url = normalize_repo_url(url)?;
 
     let host = match (url.host_str(), url.port()) {
@@ -104,20 +107,20 @@ fn do_clone(url: &str, base_dir: &Path, extra_args: Vec<String>) -> Result<()> {
         _ => unreachable!(),
     };
 
-    let path = url.path();
-    let path = path.strip_suffix(".git").unwrap_or(path);
+    let dir = {
+        let path = url.path();
+        let path = path.strip_suffix(".git").unwrap_or(path);
+        base_dir.as_ref().join(host).join(&path[1..])
+    };
 
-    let dir = base_dir.join(host).join(&path[1..]);
-
-    let mut cmd = Command::new("git");
-    cmd.arg("clone")
+    let status = Command::new("git")
+        .arg("clone")
         .arg(url.to_string())
         .arg(dir)
-        .args(&extra_args);
-
-    println!("$ {:?}", cmd);
-
-    match cmd.spawn()?.wait()?.code() {
+        .args(extra_args)
+        .spawn()?
+        .wait()?;
+    match status.code() {
         Some(0) => Ok(()),
         Some(code) => Err(Error::new(ErrorKind::GitReturnedNonZero(code))),
         None => Err(Error::new(ErrorKind::GitTerminated)),
