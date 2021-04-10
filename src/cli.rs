@@ -8,7 +8,7 @@ pub enum Args {
     Help, // -h, --help
     Clone {
         base_dir: Option<String>, // -b, --base-dir
-        url: url::Url,            // <url>
+        url: String,              // <url>
         extra_args: Vec<String>,  // -- [extra git args] ...
     },
 }
@@ -31,7 +31,7 @@ pub fn run() -> Result<()> {
             } else {
                 default_base_dir()?
             };
-            do_clone(url, base_dir.as_path(), extra_args)
+            do_clone(&url, base_dir.as_path(), extra_args)
         }
     }
 }
@@ -77,7 +77,7 @@ pub fn parse_command_line() -> Result<Args> {
     if let Some(url) = url {
         Ok(Args::Clone {
             base_dir,
-            url: normalize_repo_url(url)?,
+            url,
             extra_args: extra_args.unwrap_or_default(),
         })
     } else {
@@ -93,8 +93,10 @@ fn default_base_dir() -> Result<PathBuf> {
         .join(".pacl"))
 }
 
-fn do_clone(url: url::Url, base_dir: &Path, extra_args: Vec<String>) -> Result<()> {
+fn do_clone(url: &str, base_dir: &Path, extra_args: Vec<String>) -> Result<()> {
     use std::process::Command;
+
+    let url = normalize_repo_url(url)?;
 
     let host = match (url.host_str(), url.port()) {
         (Some(host), Some(port)) => format!("{}:{}", host, port),

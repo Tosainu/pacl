@@ -2,7 +2,7 @@ use url::Url;
 
 use crate::error::Result;
 
-pub fn normalize_repo_url(repo: String) -> Result<Url> {
+pub fn normalize_repo_url(repo: &str) -> Result<Url> {
     if !repo.contains("://") {
         if let Some((user_and_host, path)) = repo.find('@').and_then(|at| {
             repo[at..]
