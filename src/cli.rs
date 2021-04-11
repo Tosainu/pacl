@@ -27,7 +27,7 @@ pub fn run() -> Result<()> {
             base_dir,
             extra_args,
         } => {
-            let base_dir = if let Some(d) = base_dir {
+            let base_dir = if let Some(d) = base_dir.or_else(base_dir_from_env) {
                 PathBuf::from(d)
             } else {
                 default_base_dir()?
@@ -86,6 +86,10 @@ fn parse_command_line() -> Result<Args> {
             "<url>".to_owned(),
         )))
     }
+}
+
+fn base_dir_from_env() -> Option<String> {
+    std::env::var("PACL_BASE_DIR").ok()
 }
 
 fn default_base_dir() -> Result<PathBuf> {
