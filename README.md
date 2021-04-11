@@ -1,5 +1,7 @@
 # pacl
 
+![](https://github.com/Tosainu/pacl/workflows/CI/badge.svg)
+
 Simple `git clone` wrapper.
 
 ## Example
