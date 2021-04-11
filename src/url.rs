@@ -26,24 +26,24 @@ pub fn normalize_repo_url(repo: &str) -> Result<Url> {
 #[test]
 fn test_parse_repo_url() {
     assert_eq!(
-        normalize_repo_url("user@host:hoge/fuga".to_owned()).unwrap(),
+        normalize_repo_url("user@host:hoge/fuga").unwrap(),
         Url::parse("ssh://user@host/hoge/fuga").unwrap()
     );
     assert_eq!(
-        normalize_repo_url("hoge/fuga".to_owned()).unwrap(),
+        normalize_repo_url("hoge/fuga").unwrap(),
         Url::parse("https://github.com/hoge/fuga").unwrap()
     );
     assert_eq!(
-        normalize_repo_url("hogehoge".to_owned()).unwrap(),
+        normalize_repo_url("hogehoge").unwrap(),
         Url::parse("https://github.com/hogehoge").unwrap()
     );
 
     assert_eq!(
-        normalize_repo_url("https://host/hoge/fuga".to_owned()).unwrap(),
+        normalize_repo_url("https://host/hoge/fuga").unwrap(),
         Url::parse("https://host/hoge/fuga").unwrap()
     );
     assert_eq!(
-        normalize_repo_url("ssh://user@host/hoge/fuga".to_owned()).unwrap(),
+        normalize_repo_url("ssh://user@host/hoge/fuga").unwrap(),
         Url::parse("ssh://user@host/hoge/fuga").unwrap()
     );
 }
