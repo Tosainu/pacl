@@ -15,12 +15,12 @@ pub fn normalize_repo_url(repo: &str) -> Result<Url> {
             // hogehoge  => https://github.com/hogehoge
             // hoge/fuga => https://github.com/hoge/fuga
             let mut url = Url::parse("https://github.com")?;
-            url.set_path(&repo);
+            url.set_path(repo);
             return Ok(url);
         }
     };
 
-    Ok(Url::parse(&repo)?)
+    Ok(Url::parse(repo)?)
 }
 
 #[test]

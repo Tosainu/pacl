@@ -93,7 +93,7 @@ fn base_dir_from_env() -> Option<String> {
 }
 
 fn default_base_dir() -> Result<PathBuf> {
-    Ok(dirs::home_dir()
+    Ok(home::home_dir()
         .ok_or_else(|| Error::new(ErrorKind::HomeDirectoryNotDetected))?
         .join(".pacl"))
 }
