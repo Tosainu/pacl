@@ -13,7 +13,7 @@ $ pacl rust-lang/rust -- --depth 50
     ~/.pacl/github.com/rust-lang/rust \
     --depth 50
 
-$ https://gitlab.freedesktop.org/xorg/app/xeyes
+$ pacl https://gitlab.freedesktop.org/xorg/app/xeyes
 ➔ git clone \
     https://gitlab.freedesktop.org/xorg/app/xeyes \
     ~/.pacl/gitlab.freedesktop.org/xorg/app/xeyes
