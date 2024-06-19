@@ -8,4 +8,4 @@ edition = "2021"
 
 [dependencies]
 home = "0.5.9"
-url = "2.5.1"
+url = "2.5.2"
