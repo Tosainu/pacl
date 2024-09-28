@@ -1,8 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use regex::Regex;
+
 use crate::error::{Error, ErrorKind, Result};
-use crate::url::normalize_repo_url;
 
 #[derive(Debug)]
 enum Args {
@@ -23,7 +24,7 @@ pub fn run() -> Result<()> {
             Ok(())
         }
         Args::Clone {
-            url,
+            mut url,
             base_dir,
             extra_args,
         } => {
@@ -32,6 +33,11 @@ pub fn run() -> Result<()> {
             } else {
                 default_base_dir()?
             };
+
+            if maybe_github_repository(&url) {
+                url = format!("{}/{}", "https://github.com", url)
+            }
+
             do_clone(&url, base_dir, &extra_args)
         }
     }
@@ -103,24 +109,13 @@ where
     P: AsRef<Path>,
     S: AsRef<std::ffi::OsStr>,
 {
-    let url = normalize_repo_url(url)?;
-
-    let host = match (url.host_str(), url.port()) {
-        (Some(host), Some(port)) => format!("{}:{}", host, port),
-        (Some(host), None) => String::from(host),
-        _ => unreachable!(),
-    };
-
-    let dir = {
-        let path = url.path();
-        let path = path.strip_suffix(".git").unwrap_or(path);
-        base_dir.as_ref().join(host).join(&path[1..])
-    };
+    let path = git_url_to_path(url)?;
+    let path = base_dir.as_ref().join(path);
 
     let status = Command::new("git")
         .arg("clone")
-        .arg(url.to_string())
-        .arg(dir)
+        .arg(url)
+        .arg(path)
         .args(extra_args)
         .spawn()?
         .wait()?;
@@ -129,4 +124,103 @@ where
         Some(code) => Err(Error::new(ErrorKind::GitReturnedNonZero(code))),
         None => Err(Error::new(ErrorKind::GitTerminated)),
     }
+}
+
+fn maybe_github_repository(url: &str) -> bool {
+    match url.split_once('/') {
+        Some((owner, repository)) => {
+            let f1 = |c: char| c.is_ascii_alphanumeric() || c == '-';
+            let f2 = |c: char| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_';
+            owner.chars().all(f1) && repository.chars().all(f2)
+        }
+        None => false,
+    }
+}
+
+#[test]
+fn test_maybe_github_repository() {
+    assert!(maybe_github_repository("octocat/Spoon-Knife"));
+    assert!(maybe_github_repository("octocat/octocat.github.io"));
+    assert!(maybe_github_repository("Tosainu/foo_bar"));
+    assert!(maybe_github_repository("Tosainu-/foo_bar"));
+
+    assert!(!maybe_github_repository(""));
+    assert!(!maybe_github_repository("myon.info"));
+    assert!(!maybe_github_repository("myon.info/foo_bar"));
+    assert!(!maybe_github_repository("Tosainu=/foo_bar"));
+    assert!(!maybe_github_repository("Tosainu_/foo_bar"));
+}
+
+fn git_url_to_path(url: &str) -> Result<String> {
+    if url.contains("://") {
+        let re = Regex::new(r"^\w+?://([^/]\S+?)(?:\.git)?$").unwrap();
+        if let Some(m) = re.captures(url) {
+            return Ok(m.get(1).unwrap().as_str().into());
+        }
+    } else {
+        // scp-like syntax
+        let re = Regex::new(r"^([^/]+?):(~[^/]+?/)?(\S+)$").unwrap();
+        if let Some(m) = re.captures(url) {
+            return Ok(format!(
+                "{}/{}{}",
+                m.get(1).unwrap().as_str(),
+                m.get(2).map(|m| m.as_str()).unwrap_or("~/"),
+                m.get(3).unwrap().as_str()
+            ));
+        }
+    }
+
+    Err(Error::new(ErrorKind::InvalidArg(None)))
+}
+
+#[test]
+fn test_git_url_to_path() {
+    assert_eq!(
+        git_url_to_path("https://github.com/octocat/Spoon-Knife").ok(),
+        Some("github.com/octocat/Spoon-Knife".to_owned())
+    );
+    assert_eq!(
+        git_url_to_path("https://github.com/octocat/Spoon-Knife.git").ok(),
+        Some("github.com/octocat/Spoon-Knife".to_owned())
+    );
+    assert_eq!(
+        git_url_to_path("ssh://user@host:123/foo/bar/baz.git").ok(),
+        Some("user@host:123/foo/bar/baz".to_owned())
+    );
+    assert_eq!(
+        git_url_to_path("ssh://user@host/foo/bar/baz.git").ok(),
+        Some("user@host/foo/bar/baz".to_owned())
+    );
+    assert_eq!(
+        git_url_to_path("ssh://user@host:123/~user/foo/bar/baz.git").ok(),
+        Some("user@host:123/~user/foo/bar/baz".to_owned())
+    );
+    assert_eq!(
+        git_url_to_path("ssh://user@host/~user/foo/bar/baz.git").ok(),
+        Some("user@host/~user/foo/bar/baz".to_owned())
+    );
+
+    assert_eq!(
+        git_url_to_path("user@host:~user/foo/bar/baz.git").ok(),
+        Some("user@host/~user/foo/bar/baz.git".to_owned())
+    );
+    assert_eq!(
+        git_url_to_path("user@host:foo/bar/baz.git").ok(),
+        Some("user@host/~/foo/bar/baz.git".to_owned())
+    );
+    assert_eq!(
+        git_url_to_path("host:~user/foo/bar/baz.git").ok(),
+        Some("host/~user/foo/bar/baz.git".to_owned())
+    );
+    assert_eq!(
+        git_url_to_path("host:foo/bar/baz.git").ok(),
+        Some("host/~/foo/bar/baz.git".to_owned())
+    );
+
+    assert_eq!(git_url_to_path("").ok(), None);
+    assert_eq!(git_url_to_path("/").ok(), None);
+    assert_eq!(git_url_to_path("ssh://").ok(), None);
+    assert_eq!(git_url_to_path("file:///path/to/repo.git/").ok(), None);
+    assert_eq!(git_url_to_path("/path/to/repo.git/").ok(), None);
+    assert_eq!(git_url_to_path(":foo/bar/baz.git").ok(), None);
 }

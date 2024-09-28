@@ -6,6 +6,8 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-home = "0.5.9"
-url = "2.5.2"
+[dependencies.home]
+version = "0.5.9"
+
+[dependencies.regex]
+version = "1.10.0"
