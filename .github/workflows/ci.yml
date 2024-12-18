@@ -10,7 +10,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os:
+          - ubuntu-24.04
+          - macos-13
+          - windows-2022
         rust:
           - 1.81.0
           - stable
@@ -27,7 +30,7 @@ jobs:
       - run: cargo --color always test
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4.2.2
 
