@@ -14,18 +14,9 @@ jobs:
           - ubuntu-24.04
           - macos-13
           - windows-2022
-        rust:
-          - 1.81.0
-          - stable
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4.2.2
-
-      - name: Setup Rust toolchains
-        run: |
-          rustup toolchain update "${{ matrix.rust }}" --no-self-update
-          rustup default "${{ matrix.rust }}"
-
       - run: cargo --color always check
       - run: cargo --color always test
 
@@ -33,12 +24,5 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4.2.2
-
-      - name: Setup Rust toolchains
-        run: |
-          rustup toolchain update stable --no-self-update
-          rustup default stable
-          rustup component add clippy rustfmt
-
       - run: cargo fmt -- --color always --check
       - run: cargo --color always clippy
