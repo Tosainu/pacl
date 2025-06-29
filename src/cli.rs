@@ -5,7 +5,7 @@ use regex::Regex;
 
 use crate::error::{Error, ErrorKind, Result};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Args {
     Help, // -h, --help
     Clone {
@@ -17,7 +17,7 @@ enum Args {
 }
 
 pub fn run() -> Result<()> {
-    let arg = parse_command_line()?;
+    let arg = parse_command_line(std::env::args().skip(1))?;
 
     match arg {
         Args::Help => {
@@ -59,10 +59,7 @@ fn print_usage() {
     println!("    -s, --ssh             prefer SSH to clone GitHub repository");
 }
 
-fn parse_command_line() -> Result<Args> {
-    let mut args = std::env::args();
-    args.next();
-
+fn parse_command_line(mut args: impl Iterator<Item = String>) -> Result<Args> {
     let mut base_dir = None;
     let mut prefer_ssh = false;
     let mut url = None;
@@ -72,7 +69,13 @@ fn parse_command_line() -> Result<Args> {
         match arg.as_str() {
             "-h" | "--help" => return Ok(Args::Help),
 
-            "-b" | "--base-dir" => base_dir = Some(args.next().unwrap()),
+            "-b" | "--base-dir" => {
+                if let Some(d) = args.next() {
+                    base_dir = Some(d);
+                } else {
+                    return Err(Error::new(ErrorKind::InvalidArg(Some(arg))));
+                }
+            }
 
             "-s" | "--ssh" => prefer_ssh = true,
 
@@ -103,6 +106,119 @@ fn parse_command_line() -> Result<Args> {
             "<url>".to_owned(),
         )))
     }
+}
+
+#[test]
+fn test_parse_command_line() -> Result<()> {
+    assert!(parse_command_line(std::iter::empty()).is_err());
+
+    assert_eq!(parse_command_line(["-h".into()].into_iter())?, Args::Help);
+    assert_eq!(
+        parse_command_line(["--help".into()].into_iter())?,
+        Args::Help
+    );
+    assert_eq!(
+        parse_command_line(["nyan".into(), "-h".into(), "myon".into()].into_iter())?,
+        Args::Help
+    );
+
+    assert_eq!(
+        parse_command_line(["octocat/Spoon-Knife".into()].into_iter())?,
+        Args::Clone {
+            base_dir: None,
+            prefer_ssh: false,
+            url: "octocat/Spoon-Knife".into(),
+            extra_args: vec![],
+        }
+    );
+
+    assert!(parse_command_line(["aaa".into(), "bbb".into()].into_iter()).is_err());
+
+    assert_eq!(
+        parse_command_line(["-b".into(), "nyan".into(), "octocat/Spoon-Knife".into()].into_iter())?,
+        Args::Clone {
+            base_dir: Some("nyan".into()),
+            prefer_ssh: false,
+            url: "octocat/Spoon-Knife".into(),
+            extra_args: vec![],
+        }
+    );
+    assert_eq!(
+        parse_command_line(["-b".into(), "nyan".into(), "octocat/Spoon-Knife".into()].into_iter())?,
+        Args::Clone {
+            base_dir: Some("nyan".into()),
+            prefer_ssh: false,
+            url: "octocat/Spoon-Knife".into(),
+            extra_args: vec![],
+        }
+    );
+    assert_eq!(
+        parse_command_line(
+            [
+                "--base-dir".into(),
+                "nyan".into(),
+                "octocat/Spoon-Knife".into()
+            ]
+            .into_iter()
+        )?,
+        Args::Clone {
+            base_dir: Some("nyan".into()),
+            prefer_ssh: false,
+            url: "octocat/Spoon-Knife".into(),
+            extra_args: vec![],
+        }
+    );
+
+    assert!(parse_command_line(["-b".into()].into_iter()).is_err());
+
+    assert_eq!(
+        parse_command_line(["-s".into(), "octocat/Spoon-Knife".into()].into_iter())?,
+        Args::Clone {
+            base_dir: None,
+            prefer_ssh: true,
+            url: "octocat/Spoon-Knife".into(),
+            extra_args: vec![],
+        }
+    );
+    assert_eq!(
+        parse_command_line(["--ssh".into(), "octocat/Spoon-Knife".into()].into_iter())?,
+        Args::Clone {
+            base_dir: None,
+            prefer_ssh: true,
+            url: "octocat/Spoon-Knife".into(),
+            extra_args: vec![],
+        }
+    );
+
+    assert_eq!(
+        parse_command_line(["octocat/Spoon-Knife".into(), "--".into(),].into_iter())?,
+        Args::Clone {
+            base_dir: None,
+            prefer_ssh: false,
+            url: "octocat/Spoon-Knife".into(),
+            extra_args: vec![],
+        }
+    );
+
+    assert_eq!(
+        parse_command_line(
+            [
+                "octocat/Spoon-Knife".into(),
+                "--".into(),
+                "aaa".into(),
+                "bbb".into()
+            ]
+            .into_iter()
+        )?,
+        Args::Clone {
+            base_dir: None,
+            prefer_ssh: false,
+            url: "octocat/Spoon-Knife".into(),
+            extra_args: vec!["aaa".into(), "bbb".into()],
+        }
+    );
+
+    Ok(())
 }
 
 fn base_dir_from_env() -> Option<String> {
