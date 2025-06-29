@@ -10,6 +10,7 @@ enum Args {
     Help, // -h, --help
     Clone {
         base_dir: Option<String>, // -b, --base-dir
+        prefer_ssh: bool,         // -s, --ssh
         url: String,              // <url>
         extra_args: Vec<String>,  // -- [extra git args] ...
     },
@@ -26,6 +27,7 @@ pub fn run() -> Result<()> {
         Args::Clone {
             mut url,
             base_dir,
+            prefer_ssh,
             extra_args,
         } => {
             let base_dir = if let Some(d) = base_dir.or_else(base_dir_from_env) {
@@ -35,7 +37,11 @@ pub fn run() -> Result<()> {
             };
 
             if maybe_github_repository(&url) {
-                url = format!("{}/{}", "https://github.com", url)
+                url = if prefer_ssh {
+                    format!("{}:{}", "git@github.com", url)
+                } else {
+                    format!("{}/{}", "https://github.com", url)
+                };
             }
 
             do_clone(&url, base_dir, &extra_args)
@@ -50,6 +56,7 @@ fn print_usage() {
     println!("options:");
     println!("    -h, --help            display this messages and exit");
     println!("    -b, --base-dir <dir>  base directory to clone");
+    println!("    -s, --ssh             prefer SSH to clone GitHub repository");
 }
 
 fn parse_command_line() -> Result<Args> {
@@ -57,6 +64,7 @@ fn parse_command_line() -> Result<Args> {
     args.next();
 
     let mut base_dir = None;
+    let mut prefer_ssh = false;
     let mut url = None;
     let mut extra_args = None;
 
@@ -65,6 +73,8 @@ fn parse_command_line() -> Result<Args> {
             "-h" | "--help" => return Ok(Args::Help),
 
             "-b" | "--base-dir" => base_dir = Some(args.next().unwrap()),
+
+            "-s" | "--ssh" => prefer_ssh = true,
 
             "--" => {
                 extra_args = Some(args.collect());
@@ -84,6 +94,7 @@ fn parse_command_line() -> Result<Args> {
     if let Some(url) = url {
         Ok(Args::Clone {
             base_dir,
+            prefer_ssh,
             url,
             extra_args: extra_args.unwrap_or_default(),
         })
