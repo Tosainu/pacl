@@ -1,6 +1,6 @@
 fn main() {
     if let Err(e) = pacl::cli::run() {
-        eprintln!("{}", e);
+        eprintln!("{e}");
         std::process::exit(3);
     }
 }

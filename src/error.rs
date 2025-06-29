@@ -33,7 +33,7 @@ impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ErrorKind::GitReturnedNonZero(status) => {
-                write!(f, "Git returned non-zero status code '{}'", status)
+                write!(f, "Git returned non-zero status code '{status}'")
             }
             ErrorKind::GitTerminated => write!(f, "Git terminated by signal"),
             ErrorKind::HomeDirectoryNotDetected => write!(f, "Home directory not detected"),
@@ -41,11 +41,11 @@ impl fmt::Display for ErrorKind {
             ErrorKind::InvalidArg(arg) => {
                 write!(f, "unknown / invalid commandline argument")?;
                 if let Some(arg) = arg {
-                    write!(f, " '{}'", arg)?;
+                    write!(f, " '{arg}'")?;
                 }
                 Ok(())
             }
-            ErrorKind::MissingRequiredArg(arg) => write!(f, "missing required argument '{}'", arg),
+            ErrorKind::MissingRequiredArg(arg) => write!(f, "missing required argument '{arg}'"),
         }
     }
 }
