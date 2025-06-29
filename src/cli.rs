@@ -166,7 +166,7 @@ fn git_url_to_path(url: &str) -> Result<String> {
     if url.contains("://") {
         let re = Regex::new(r"^\w+?://([^/]\S+?)(?:\.git)?$").unwrap();
         if let Some(m) = re.captures(url) {
-            return Ok(m.get(1).unwrap().as_str().into());
+            return Ok(m.get(1).unwrap().as_str().trim_start_matches("git@").into());
         }
     } else {
         // scp-like syntax
@@ -174,8 +174,8 @@ fn git_url_to_path(url: &str) -> Result<String> {
         if let Some(m) = re.captures(url) {
             return Ok(format!(
                 "{}/{}{}",
-                m.get(1).unwrap().as_str(),
-                m.get(2).map(|m| m.as_str()).unwrap_or("~/"),
+                m.get(1).unwrap().as_str().trim_start_matches("git@"),
+                m.get(2).map(|m| m.as_str()).unwrap_or(""),
                 m.get(3).unwrap().as_str()
             ));
         }
@@ -199,6 +199,10 @@ fn test_git_url_to_path() {
         Some("user@host:123/foo/bar/baz".to_owned())
     );
     assert_eq!(
+        git_url_to_path("ssh://git@host:123/foo/bar/baz.git").ok(),
+        Some("host:123/foo/bar/baz".to_owned())
+    );
+    assert_eq!(
         git_url_to_path("ssh://user@host/foo/bar/baz.git").ok(),
         Some("user@host/foo/bar/baz".to_owned())
     );
@@ -217,7 +221,11 @@ fn test_git_url_to_path() {
     );
     assert_eq!(
         git_url_to_path("user@host:foo/bar/baz.git").ok(),
-        Some("user@host/~/foo/bar/baz.git".to_owned())
+        Some("user@host/foo/bar/baz.git".to_owned())
+    );
+    assert_eq!(
+        git_url_to_path("git@host:foo/bar/baz.git").ok(),
+        Some("host/foo/bar/baz.git".to_owned())
     );
     assert_eq!(
         git_url_to_path("host:~user/foo/bar/baz.git").ok(),
@@ -225,7 +233,7 @@ fn test_git_url_to_path() {
     );
     assert_eq!(
         git_url_to_path("host:foo/bar/baz.git").ok(),
-        Some("host/~/foo/bar/baz.git".to_owned())
+        Some("host/foo/bar/baz.git".to_owned())
     );
 
     assert_eq!(git_url_to_path("").ok(), None);
