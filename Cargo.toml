@@ -11,4 +11,4 @@ rust-version = "1.85.0"
 version = "0.5.11"
 
 [dependencies.regex]
-version = "1.11.2"
+version = "1.12.2"
