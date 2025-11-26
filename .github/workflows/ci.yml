@@ -16,13 +16,13 @@ jobs:
           - windows-2025
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5.0.1
+      - uses: actions/checkout@v6.0.0
       - run: cargo --color always check
       - run: cargo --color always test
 
   lint:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5.0.1
+      - uses: actions/checkout@v6.0.0
       - run: cargo fmt -- --color always --check
       - run: cargo --color always clippy
